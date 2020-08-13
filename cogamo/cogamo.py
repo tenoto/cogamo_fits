@@ -9,9 +9,9 @@ import pandas as pd
 import astropy.units as u
 from astropy.io import fits
 from astropy.time import Time
-from astropy.time import TimeDelta 
 
-TimeDelta_JST2UTC = TimeDelta(9.0*60*60, format='sec')
+from datetime import timedelta, timezone
+tz_tokyo = timezone(timedelta(hours=+9), 'Asia/Tokyo')
 
 class EventFile(object):
 	def __init__(self):
@@ -77,18 +77,17 @@ class CogamoRawcsvEventFile(EventFile):
 		self.config = CogamoConfigFile(config_file)
 
 	def set_time_series(self):
+		"""
+		the standard unix time does not have enough accuracy below 1 second.
+		Sub-second time stamp is handled by another column
+		"""
 		year = self.yyyymmdd_jst[0:4]
 		month = self.yyyymmdd_jst[4:6]
 		day = self.yyyymmdd_jst[6:8]		
 		str_time = '%04d-%02d-%02dT%02d:' % (int(year),int(month),int(day),int(self.hour_jst))
-		self.time_series_str  = np.char.array(np.full(self.nevents, str_time)) + np.char.mod('%02d:',self.df['minute']) + np.char.mod('%02d.',self.df['sec']) + + np.char.mod('%04d',self.df['decisec'])
-		self.time_series_jst = Time(self.time_series_str, format='isot', scale='utc') 
-		self.time_series_utc = self.time_series_jst - TimeDelta_JST2UTC
-		print(self.time_series_jst)
-		print(self.time_series_utc)
-		print(self.time_series_jst.unix[0])
-		print(self.time_series_utc.unix[0])		
-		exit()
+		self.time_series_str  = np.char.array(np.full(self.nevents, str_time)) + np.char.mod('%02d:',self.df['minute']) + np.char.mod('%02d',self.df['sec']) + np.char.mod('.%04d',self.df['decisec']) 
+		self.time_series_jst = Time(self.time_series_str, format='isot', scale='utc', precision=5) 
+		self.time_series_utc = self.time_series_jst - timedelta(hours=+9)
 
 	def write_to_fitsfile(self,output_fitsfile=None,config_file=None):
 		"""
@@ -103,12 +102,13 @@ class CogamoRawcsvEventFile(EventFile):
 
 		self.set_time_series()
 
+		column_unixtime = fits.Column(name='unixtime',format='D', unit='sec', array=self.time_series_utc.unix)
 		column_minute = fits.Column(name='minute',format='B', unit='minute', array=self.df['minute'])
 		column_sec = fits.Column(name='sec',format='B', unit='sec', array=self.df['sec'])
 		column_decisec = fits.Column(name='decisec',format='I', unit='100 microsec', array=self.df['decisec'])						
 		column_pha = fits.Column(name='pha',format='I', unit='channel', array=self.df['pha'])
 
-		column_defs = fits.ColDefs([column_minute,column_sec,column_decisec,column_pha])
+		column_defs = fits.ColDefs([column_unixtime,column_minute,column_sec,column_decisec,column_pha])
 		hdu = fits.BinTableHDU.from_columns(column_defs,name='EVENTS')
 
 		dict_keywords = {
@@ -125,6 +125,8 @@ class CogamoRawcsvEventFile(EventFile):
 			for keyword in self.config.dict_keywords.keys():
 				hdu.header[keyword] = self.config.dict_keywords[keyword]
 
+		hdu.header['comment'] = 'unixtime is UTC, while minute, sec, decisec columns and the file name are JST.'
+		hdu.header['history'] = 'created at {} JST'.format(Time.now().to_datetime(tz_tokyo))
 		hdu.writeto(output_fitsfile)
 
 class CogamoConfigFile():
