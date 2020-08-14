@@ -33,7 +33,7 @@ def main(args=None):
 	parser = get_parser()
 	args = parser.parse_args(args)
 
-	file = cogamo.cogamo_open(args.input_csv)
+	file = cogamo.fopen(args.input_csv)
 	file.write_to_fitsfile(output_fitsfile=args.output_fitsfile,config_file=args.config_file)
 
 if __name__=="__main__":

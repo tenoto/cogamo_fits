@@ -4,9 +4,11 @@ import argparse
 
 import cogamo.cogamo as cogamo
 
+import matplotlib.pylab as plt 
+
 __author__ = 'Teruaki Enoto'
 __version__ = '0.01'
-# v0.01 : 2020-08-13 : original version
+# v0.01 : 2020-08-14 : original version
 
 def get_parser():
 	"""
@@ -21,20 +23,16 @@ Convert a raw csv-format CoGaMo house keeping data file to a fits-format event f
 	version = '%(prog)s ' + __version__
 	parser.add_argument('--version', '-v', action='version', version=version,
 		help='show version of this command.')
-	parser.add_argument('input_csv', type=str, 
-		help='input raw csv-format house keeping data file obtained with the CoGaMo.')
-	parser.add_argument('--output_fitsfile', '-o', type=str, default=None, 
-		help='output fits-format event file. If the blank, the output file basename is the same as its input.')	
-	parser.add_argument('--config_file', '-c', type=str, default=None, 
-		help='configure file.')		
+	parser.add_argument('input_hkfits', type=str, 
+		help='input fits-format hk file.')
 	return parser
 
 def main(args=None):
 	parser = get_parser()
 	args = parser.parse_args(args)
 
-	file = cogamo.fopen(args.input_csv)
-	file.write_to_fitsfile(output_fitsfile=args.output_fitsfile,config_file=args.config_file)
+	file = cogamo.fopen(args.input_hkfits)
+	file.plot()
 
 if __name__=="__main__":
 	main()

@@ -12,6 +12,12 @@ from astropy.time import Time
 
 from datetime import timedelta, timezone
 tz_tokyo = timezone(timedelta(hours=+9), 'Asia/Tokyo')
+tz_utc = timezone(timedelta(hours=0), 'UTC')
+
+import matplotlib.dates as dates
+import matplotlib.pylab as plt 
+from astropy.visualization import time_support
+import matplotlib
 
 class EventFile(object):
 	def __init__(self):
@@ -46,7 +52,7 @@ class EventFitsFile(EventFile):
 		self.format = 'fits'
 		self.nevents = len(self.hdu['EVENTS'].data)				
 
-class CogamoRawcsvEventFile(EventFile):
+class EventRawcsvFile(EventFile):
 	"""Represents EventFile in the CSV format for a CoGamo detector.
 	:param file_path: path to a file to be opened
 	"""
@@ -74,7 +80,7 @@ class CogamoRawcsvEventFile(EventFile):
 		self.detid_str, self.yyyymmdd_jst, self.hour_jst = os.path.splitext(os.path.basename(self.file_path))[0].split("_")		
 
 	def set_config_file(self,config_file):
-		self.config = CogamoConfigFile(config_file)
+		self.config = ConfigFile(config_file)
 
 	def set_time_series(self):
 		"""
@@ -129,7 +135,7 @@ class CogamoRawcsvEventFile(EventFile):
 		hdu.header['history'] = 'created at {} JST'.format(Time.now().to_datetime(tz_tokyo))
 		hdu.writeto(output_fitsfile)
 
-class CogamoConfigFile():
+class ConfigFile():
 	def __init__(self, file_path):
 		self.file_path = file_path
 
@@ -148,7 +154,21 @@ class CogamoConfigFile():
 	def get_dict_keywords(self):
 		return self.dict_keywords
 
-class CogamoHouseKeepingFile():
+class HouseKeepingFile(object):
+	def __init__(self):
+		self.nlines = 0
+		self.file_path = None
+
+	def show_data_summary(self):
+		sys.stdout.write(str(self))
+
+	def __str__(self):
+		dump  = 'Format: {}'.format(self.format)		
+		dump += 'Nlines: {}'.format(self.nlines)
+		dump += '\n'
+		return dump
+
+class HousekeepingRawcsvFile():
 	def __init__(self,file_path):
 		self.file_path = file_path
 
@@ -173,7 +193,7 @@ class CogamoHouseKeepingFile():
 		self.detid_str, self.yyyymmdd_jst = os.path.splitext(os.path.basename(self.file_path))[0].split("_")		
 
 	def set_config_file(self,config_file):
-		self.config = CogamoConfigFile(config_file)
+		self.config = ConfigFile(config_file)
 
 	def set_time_series(self):
 		"""
@@ -197,24 +217,24 @@ class CogamoHouseKeepingFile():
 
 		self.set_time_series()
 
-		column_yyyymmdd = fits.Column(name='yyyymmdd',format='10A', unit='JST', array=np.char.array(self.df['yyyymmdd']))
-		column_hhmmss = fits.Column(name='hhmmss',format='8A', unit='JST', array=np.char.array(self.df['hhmmss']))
-		column_unixtime = fits.Column(name='unixtime',format='D', unit='sec', array=self.time_series_utc.unix)
-		column_interval = fits.Column(name='interval',format='I', unit='sec', array=self.df['interval'])
-		column_rate1 = fits.Column(name='rate1',format='D', unit='count/s', array=self.df['rate1'])
-		column_rate2 = fits.Column(name='rate2',format='D', unit='count/s', array=self.df['rate2'])
-		column_rate3 = fits.Column(name='rate3',format='D', unit='count/s', array=self.df['rate3'])
-		column_rate4 = fits.Column(name='rate4',format='D', unit='count/s', array=self.df['rate4'])
-		column_rate5 = fits.Column(name='rate5',format='D', unit='count/s', array=self.df['rate5'])								
-		column_rate6 = fits.Column(name='rate6',format='D', unit='count/s', array=self.df['rate6'])	
-		column_temperature = fits.Column(name='temperature',format='D', unit='degC', array=self.df['temperature'])		
-		column_pressure = fits.Column(name='pressure',format='D', unit='hPa', array=self.df['pressure'])					
-		column_humidity = fits.Column(name='humidity',format='D', unit='%', array=self.df['humidity'])	
-		column_differential = fits.Column(name='differential',format='D', unit='count/s', array=self.df['differential'])
-		column_lux = fits.Column(name='lux',format='D', unit='lux', array=self.df['lux'])	
-		column_gps_status = fits.Column(name='gps_status',format='I', unit='', array=self.df['gps_status'])	
-		column_longitude = fits.Column(name='longitude',format='D', unit='deg', array=self.df['longitude'])		
-		column_latitude = fits.Column(name='latitude',format='D', unit='deg', array=self.df['latitude'])			
+		column_yyyymmdd = fits.Column(name='YYYYMMDD',format='10A', unit='JST', array=np.char.array(self.df['yyyymmdd']))
+		column_hhmmss = fits.Column(name='HHMMSS',format='8A', unit='JST', array=np.char.array(self.df['hhmmss']))
+		column_unixtime = fits.Column(name='Unixtime',format='D', unit='sec', array=self.time_series_utc.unix)
+		column_interval = fits.Column(name='Interval',format='I', unit='sec', array=self.df['interval'])
+		column_rate1 = fits.Column(name='Rate1',format='D', unit='count/s', array=self.df['rate1'])
+		column_rate2 = fits.Column(name='Rate2',format='D', unit='count/s', array=self.df['rate2'])
+		column_rate3 = fits.Column(name='Rate3',format='D', unit='count/s', array=self.df['rate3'])
+		column_rate4 = fits.Column(name='Rate4',format='D', unit='count/s', array=self.df['rate4'])
+		column_rate5 = fits.Column(name='Rate5',format='D', unit='count/s', array=self.df['rate5'])								
+		column_rate6 = fits.Column(name='Rate6',format='D', unit='count/s', array=self.df['rate6'])	
+		column_temperature = fits.Column(name='Temperature',format='D', unit='degC', array=self.df['temperature'])		
+		column_pressure = fits.Column(name='Pressure',format='D', unit='hPa', array=self.df['pressure'])					
+		column_humidity = fits.Column(name='Humidity',format='D', unit='%', array=self.df['humidity'])	
+		column_differential = fits.Column(name='Differential',format='D', unit='count/s', array=self.df['differential'])
+		column_lux = fits.Column(name='Illumination',format='D', unit='lux', array=self.df['lux'])	
+		column_gps_status = fits.Column(name='Gps_status',format='I', unit='', array=self.df['gps_status'])	
+		column_longitude = fits.Column(name='Longitude',format='D', unit='deg', array=self.df['longitude'])		
+		column_latitude = fits.Column(name='Latitude',format='D', unit='deg', array=self.df['latitude'])			
 
 		column_defs = fits.ColDefs([column_yyyymmdd,column_hhmmss,column_unixtime,column_interval,column_rate1,column_rate2,column_rate3,column_rate4,column_rate5,column_rate6,column_temperature,column_pressure,column_humidity,column_differential,column_lux,column_gps_status,column_longitude,column_latitude])
 		hdu = fits.BinTableHDU.from_columns(column_defs,name='HK')
@@ -234,13 +254,94 @@ class CogamoHouseKeepingFile():
 		hdu.header['comment'] = 'unixtime is UTC, while yyyymmddTHH:MM:SS column and the file name are JST.'
 		hdu.header['history'] = 'created at {} JST'.format(Time.now().to_datetime(tz_tokyo))
 		hdu.writeto(output_fitsfile)
+
+class HousekeepingFitsFile():
+	def __init__(self,file_path):
+		self.file_path = file_path
+
+		self.basename = os.path.splitext(os.path.basename(self.file_path))[0]
+
+		if not os.path.exists(self.file_path):
+			raise FileNotFoundError("{} not found".format(self.file_path))
+		try:
+			self.hdu = fits.open(self.file_path)
+		except OSError as e:
+			raise
+
+		self.format = 'fits'
+		self.nlines = len(self.hdu['HK'].data)
+
+	def plot(self):
+		data = self.hdu['HK'].data
+
+		time_series_utc = Time(data['Unixtime'],format='unix',scale='utc')
+		time_series_jst = time_series_utc.to_datetime(timezone=tz_tokyo)
+		matplotlib.rcParams['timezone'] = 'Asia/Tokyo'
+
+		title  = 'DET_ID=%s ' % self.hdu['HK'].header['DET_ID']
+		title += '(Longitude=%.3f deg, ' % (np.mean(data['Longitude']))
+		title += 'Latitude=%.3f deg)' % (np.mean(data['Latitude']))		
+		title += '\n'
+		title += '%s ' % str(time_series_jst[0])[0:10]
+		title += 'Interval=%d min ' % (self.hdu['HK'].header['INTERVAL'])
+		title += '(%s)' % os.path.basename(self.file_path)
+		title += '\n'		
+		title += 'Rate L (1+2):<%.1f MeV, ' % (self.hdu['HK'].header['AREABD2']/1000.0)
+		title += 'Rate M (3+4):%.1f-%.1f MeV, ' % (self.hdu['HK'].header['AREABD2']/1000.0,self.hdu['HK'].header['AREABD4']/1000.0)		
+		title += 'Rate H (5+6):>%.1f MeV, ' % (self.hdu['HK'].header['AREABD4']/1000.0)
+
+		outpdf = '%s.pdf' % self.basename
+
+		fig, axs = plt.subplots(9,1, figsize=(8.27,11.69), 
+			sharex=True, gridspec_kw={'hspace': 0})
+		axs[0].plot(time_series_jst,data['Rate1']+data['Rate2'],'o-', mec='k', label="data")
+		axs[0].set_ylabel(r"Rate L (cps)")
+		axs[0].set_title(title)	
+		axs[1].plot(time_series_jst,data['Rate3']+data['Rate4'],'o-', mec='k', label="data")
+		axs[1].set_ylabel(r"Rate M (cps)")	
+		axs[2].plot(time_series_jst,data['Rate5']+data['Rate6'],'o-', mec='k', label="data")
+		axs[2].set_ylabel(r"Rate H (cps)")				
+		axs[3].plot(time_series_jst,data['Temperature'])
+		axs[3].set_ylabel(r"Temp. (degC)")
+		axs[4].plot(time_series_jst,data['Pressure'])
+		axs[4].set_ylabel(r"Press. (hPa)")		
+		axs[5].plot(time_series_jst,data['Humidity'])
+		axs[5].set_ylabel(r"Humid. (%)")
+		axs[6].plot(time_series_jst,data['Differential'])		
+		axs[6].set_ylabel(r"Diff (cps)")	
+		axs[6].set_yscale('log')		
+		axs[7].plot(time_series_jst,data['Illumination'])		
+		axs[7].set_yscale('log')
+		axs[7].set_ylabel(r"Illum. (lux)")
+		axs[8].plot(time_series_jst,data['Gps_status'])		
+		axs[8].set_ylabel(r"GPS status")		
+		axs[8].set_xlabel(r"Time (JST)")
+		axs[8].set_ylim(-0.5,2.5)
+		axs[8].xaxis.set_major_formatter(dates.DateFormatter('%H:%M'))
 		
-def cogamo_open(file_path):
-	if ".fits" in file_path:
+		axs[8].set_xlim(time_series_jst[0],time_series_jst[-1])
+		for ax in axs:
+			ax.label_outer()	
+			ax.minorticks_on()
+			ax.xaxis.grid(True)
+			ax.xaxis.grid(which='major', linestyle='--', color='#000000')
+			ax.xaxis.grid(which='minor', linestyle='-.')	
+			ax.xaxis.set_minor_locator(dates.HourLocator())
+		fig.align_ylabels(axs)
+		plt.tight_layout(pad=2)
+		plt.rcParams["font.family"] = "serif"
+		plt.rcParams["mathtext.fontset"] = "dejavuserif"		
+		plt.savefig(outpdf)
+
+def fopen(file_path):
+	if re.fullmatch(r'\d{3}_\d{8}_\d{2}.csv', os.path.basename(file_path)):
+		return EventRawcsvFile(file_path)
+	elif re.fullmatch(r'\d{3}_\d{8}_\d{2}.fits', os.path.basename(file_path)):
 		return EventFitsFile(file_path)
-	elif re.fullmatch(r'\d{3}_\d{8}_\d{2}.csv', os.path.basename(file_path)):
-		return CogamoRawcsvEventFile(file_path)
 	elif re.fullmatch(r'\d{3}_\d{8}.csv', os.path.basename(file_path)):
-		return CogamoHouseKeepingFile(file_path)		
+		return HousekeepingRawcsvFile(file_path)	
+	elif re.fullmatch(r'\d{3}_\d{8}_hk.fits', os.path.basename(file_path)):
+		return HousekeepingFitsFile(file_path)				
 	else:
 		raise NotImplementedError("EventFile class for this file type is not implemented")		
+
