@@ -12,25 +12,25 @@ def get_parser():
 	"""
 	Creates a new argument parser.
 	"""
-	parser = argparse.ArgumentParser('cgm_convert_hkfile_to_fitsfile.py',
+	parser = argparse.ArgumentParser('cgm_plot_pha.py',
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		description="""
-Convert a raw csv-format CoGaMo house keeping data file to a fits-format event file.
+plot pha spectrum from an event fitsfile.
 		"""
 		)
 	version = '%(prog)s ' + __version__
 	parser.add_argument('--version', '-v', action='version', version=version,
 		help='show version of this command.')
-	parser.add_argument('input_hkfits', type=str, 
-		help='input fits-format hk file.')
+	parser.add_argument('input_evtfits', type=str, 
+		help='input fits-format event file.')
 	return parser
 
 def main(args=None):
 	parser = get_parser()
 	args = parser.parse_args(args)
 
-	file = cogamo.fopen(args.input_hkfits)
-	file.plot()
+	file = cogamo.fopen(args.input_evtfits)
+	file.plot_pha_example()
 
 if __name__=="__main__":
 	main()

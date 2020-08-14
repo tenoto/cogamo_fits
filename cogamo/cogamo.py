@@ -19,6 +19,9 @@ import matplotlib.pylab as plt
 from astropy.visualization import time_support
 import matplotlib
 
+
+
+
 class EventFile(object):
 	def __init__(self):
 		self.nevents = 0
@@ -50,7 +53,45 @@ class EventFitsFile(EventFile):
 			raise
 
 		self.format = 'fits'
-		self.nevents = len(self.hdu['EVENTS'].data)				
+		self.nevents = len(self.hdu['EVENTS'].data)		
+
+	def plot_pha_example(self):
+		"""
+		This is just an example code, not perfect as a library. 
+		"""
+		sys.stdout.write('----- {} -----\n'.format(sys._getframe().f_code.co_name))
+	
+		data = self.hdu['EVENTS'].data
+
+		outpdf = '%s_pha.pdf' % self.basename
+
+
+		y, xedges, patches = plt.hist(data['pha'],range=(0,2**10),bins=2**9,histtype='step')
+		x = 0.5*(xedges[1:] + xedges[:-1])
+
+		fig, ax = plt.subplots(1,1, figsize=(11.69,8.27))
+
+		plt.errorbar(x,y,yerr=np.sqrt(y),marker='',drawstyle='steps-mid')
+
+		fontsize = 18
+		plt.xlabel('ADC channel (pha)', fontsize=fontsize)
+		plt.ylabel('Counts', fontsize=fontsize)
+		plt.xscale('log')				
+		plt.yscale('log')
+		plt.xlim(15,2**10)
+		plt.tight_layout(pad=2)
+		plt.tick_params(labelsize=fontsize)
+		plt.rcParams["font.family"] = "serif"
+		plt.rcParams["mathtext.fontset"] = "dejavuserif"		
+
+		ax.minorticks_on()
+		ax.grid(True)
+		ax.grid(axis='both',which='major', linestyle='--', color='#000000')
+		ax.grid(axis='both',which='minor', linestyle='--')	
+		ax.tick_params(axis="both", which='major', direction='in', length=5)
+		ax.tick_params(axis="both", which='minor', direction='in', length=3)	
+
+		plt.savefig(outpdf)
 
 class EventRawcsvFile(EventFile):
 	"""Represents EventFile in the CSV format for a CoGamo detector.
@@ -338,7 +379,7 @@ class HousekeepingFitsFile():
 def fopen(file_path):
 	if re.fullmatch(r'\d{3}_\d{8}_\d{2}.csv', os.path.basename(file_path)):
 		return EventRawcsvFile(file_path)
-	elif re.fullmatch(r'\d{3}_\d{8}_\d{2}.fits', os.path.basename(file_path)):
+	elif re.fullmatch(r'\d{3}_\d{8}_\d{2}.evt', os.path.basename(file_path)):
 		return EventFitsFile(file_path)
 	elif re.fullmatch(r'\d{3}_\d{8}.csv', os.path.basename(file_path)):
 		return HousekeepingRawcsvFile(file_path)	
