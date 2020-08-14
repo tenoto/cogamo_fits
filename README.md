@@ -2,7 +2,7 @@
 
 [![hackmd-github-sync-badge](https://hackmd.io/BUiCqBFqQDeVTWameMicjw/badge)](https://hackmd.io/BUiCqBFqQDeVTWameMicjw)
 
-Analysis package for the Compact Gamma-ray Monitor (CoGamo) of the "Thundercloud Project" organized by the GROWTH Collaboration. 
+Analysis package for the Compact Gamma-ray Monitor (Coamo) of the "Thundercloud Project" organized by the GROWTH Collaboration. 
 
 This page summarizes the beta-version prototype of an analyses package. 
 
@@ -73,7 +73,7 @@ The raw csv-format file is included the following columns (',' separated):
 The event data file recorded all the individual radiation events. The file name is 
 
 ```
-[det_id]_[yyyymmdd]_hour.csv
+[det_id]_[yyyymmdd]_[hour].csv
 ```
 
 where the time is defined in JST.
