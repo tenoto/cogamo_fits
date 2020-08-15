@@ -203,6 +203,14 @@ The filenames of the HK and event files, columns "YYYYMMDD", "HHMMSS" of the HK 
 
 On the other hand, "unixtime" of the HK and event files are converted to the astropy Time object defined in the UTC scale. 
 
+## Sample data 
+
+[sample data](https://riken-share.box.com/s/p97ssaj5d857dk6ysg8lldyxbedswths)
+
+Intersting data:
+- 2020-03-05 Det_ID=011 (short burst = photonuclear reaction at lightnin)
+- 2018-12-17 Det_ID=019 (long burst = gamma-ray glow)
+
 ## Online viwer
 
 [online viewer](http://www.tacinc2.sakura.ne.jp/GROWTH_8/index.php)
