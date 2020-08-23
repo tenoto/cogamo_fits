@@ -20,7 +20,25 @@ from astropy.visualization import time_support
 import matplotlib
 
 
+class Hist1D(object):
 
+	def __init__(self, nbins, xlow, xhigh):
+		self.nbins = nbins
+		self.xlow  = xlow
+		self.xhigh = xhigh
+		print(self.nbins,self.xlow,self.xhigh)
+		self.hist, edges = np.histogram([], bins=nbins, range=(xlow, xhigh))
+		self.bins = (edges[:-1] + edges[1:]) / 2.
+		print(self.hist,edges,self.bins)
+
+	def fill(self, arr):
+		print(arr)
+		hist, edges = np.histogram(arr, bins=self.nbins, range=(self.xlow, self.xhigh))
+		self.hist += hist
+
+	@property
+	def data(self):
+		return self.bins, self.hist
 
 class EventFile(object):
 	def __init__(self):
@@ -65,7 +83,6 @@ class EventFitsFile(EventFile):
 
 		outpdf = '%s_pha.pdf' % self.basename
 
-
 		y, xedges, patches = plt.hist(data['pha'],range=(0,2**10),bins=2**9,histtype='step')
 		x = 0.5*(xedges[1:] + xedges[:-1])
 
@@ -92,6 +109,68 @@ class EventFitsFile(EventFile):
 		ax.tick_params(axis="both", which='minor', direction='in', length=3)	
 
 		plt.savefig(outpdf)
+
+	def plot_curve(self,tbin=1.0,pha_min=None,pha_max=None,colname="TIME"):
+		sys.stdout.write('----- {} -----\n'.format(sys._getframe().f_code.co_name))
+
+
+		data = self.hdu['EVENTS'].data
+
+		if pha_min == None and pha_max == None:
+			print("no pha selection.")
+			suffix = 'pha_all' 
+			mask = np.full(len(data), True)
+		elif pha_min != None and pha_max == None:
+			print("%d <= pha" % pha_min)	
+			suffix = 'pha_%d_xx'	% (pha_min)								
+			mask = (data['pha'] >= pha_min)
+		elif pha_min == None and pha_max != None:
+			print("pha <= %d" % pha_max)				
+			suffix = 'pha_xx_%d' % (pha_max)													
+			mask = (data['pha'] <= pha_max)
+		elif pha_min != None and pha_max != None:
+			print("%d <= pha <= %d" % (pha_min,pha_max))
+			suffix = 'pha_%d_%d'	% (pha_min,pha_max)			
+			mask = np.logical_and((data['pha'] >= pha_min),(data['pha'] <= pha_max))
+
+		outpdf = '%s_curve_%s.pdf' % (self.basename,suffix)
+
+		print("%d --> %d (%.2f%%)" % (len(data),len(data[mask]),
+			float(len(data[mask]))/float(len(data))*100.0))
+
+		xlow = 0.0
+		xhigh = data['TIME'][-1] - data['TIME'][0]
+		nbins = round((xhigh-xlow)/tbin)
+		hist_lc = Hist1D(nbins, xlow, xhigh)
+		print(data['TIME'][mask]-data['TIME'][0])
+		hist_lc.fill(data['TIME'][mask]-data['TIME'][0])
+
+		fig, ax = plt.subplots(1,1, figsize=(11.69,8.27))		
+		plt.step(*hist_lc.data)
+
+		"""
+		plt.errorbar(x,y,yerr=np.sqrt(y),marker='',drawstyle='steps-mid')
+
+		fontsize = 18
+		plt.xlabel('ADC channel (pha)', fontsize=fontsize)
+		plt.ylabel('Counts', fontsize=fontsize)
+		plt.xscale('log')				
+		plt.yscale('log')
+		plt.xlim(15,2**10)
+		plt.tight_layout(pad=2)
+		plt.tick_params(labelsize=fontsize)
+		plt.rcParams["font.family"] = "serif"
+		plt.rcParams["mathtext.fontset"] = "dejavuserif"		
+
+		ax.minorticks_on()
+		ax.grid(True)
+		ax.grid(axis='both',which='major', linestyle='--', color='#000000')
+		ax.grid(axis='both',which='minor', linestyle='--')	
+		ax.tick_params(axis="both", which='major', direction='in', length=5)
+		ax.tick_params(axis="both", which='minor', direction='in', length=3)	
+		"""
+
+		plt.savefig(outpdf)	
 
 class EventRawcsvFile(EventFile):
 	"""Represents EventFile in the CSV format for a CoGamo detector.
@@ -136,7 +215,7 @@ class EventRawcsvFile(EventFile):
 		time_series_jst = Time(self.time_series_str, format='isot', scale='utc', precision=5) 
 		self.time_series_utc = time_series_jst - timedelta(hours=+9)
 
-	def write_to_fitsfile(self,output_fitsfile=None,config_file=None):
+	def write_to_fitsfile(self,output_fitsfile=None,config_file=None,flag_TIME=True):
 		"""
 		https://docs.astropy.org/en/stable/io/fits/usage/table.html
 		"""
@@ -149,13 +228,18 @@ class EventRawcsvFile(EventFile):
 
 		self.set_time_series()
 
+		print(type(self.time_series_utc.unix))
+		print(type(self.df['decisec']))
+		self.time = np.array(self.time_series_utc.unix) + np.array(self.df['decisec']) /10000. 
+
+		column_time = fits.Column(name='TIME',format='D', unit='sec', array=self.time)
 		column_unixtime = fits.Column(name='unixtime',format='D', unit='sec', array=self.time_series_utc.unix)
 		column_minute = fits.Column(name='minute',format='B', unit='minute', array=self.df['minute'])
 		column_sec = fits.Column(name='sec',format='B', unit='sec', array=self.df['sec'])
 		column_decisec = fits.Column(name='decisec',format='I', unit='100 microsec', array=self.df['decisec'])						
 		column_pha = fits.Column(name='pha',format='I', unit='channel', array=self.df['pha'])
 
-		column_defs = fits.ColDefs([column_unixtime,column_minute,column_sec,column_decisec,column_pha])
+		column_defs = fits.ColDefs([column_time,column_unixtime,column_minute,column_sec,column_decisec,column_pha])
 		hdu = fits.BinTableHDU.from_columns(column_defs,name='EVENTS')
 
 		dict_keywords = {
