@@ -26,13 +26,13 @@ class Hist1D(object):
 		self.nbins = nbins
 		self.xlow  = xlow
 		self.xhigh = xhigh
-		print(self.nbins,self.xlow,self.xhigh)
+		#print(self.nbins,self.xlow,self.xhigh)
 		self.hist, edges = np.histogram([], bins=nbins, range=(xlow, xhigh))
 		self.bins = (edges[:-1] + edges[1:]) / 2.
-		print(self.hist,edges,self.bins)
+		#print(self.hist,edges,self.bins)
 
 	def fill(self, arr):
-		print(arr)
+		#print(arr)
 		hist, edges = np.histogram(arr, bins=self.nbins, range=(self.xlow, self.xhigh))
 		self.hist += hist
 
@@ -170,6 +170,56 @@ class EventFitsFile(EventFile):
 		ax.tick_params(axis="both", which='minor', direction='in', length=3)	
 		"""
 
+		plt.savefig(outpdf)	
+
+	def find_burst(self,pha_min=None,pha_max=None,
+		tbin=1.0,threshold=3.0,colname="TIME"):
+		sys.stdout.write('----- {} -----\n'.format(sys._getframe().f_code.co_name))
+
+		data = self.hdu['EVENTS'].data
+
+		if pha_min == None and pha_max == None:
+			print("no pha selection.")
+			suffix = 'pha_all' 
+			mask = np.full(len(data), True)
+		elif pha_min != None and pha_max == None:
+			print("%d <= pha" % pha_min)	
+			suffix = 'pha_%d_xx'	% (pha_min)								
+			mask = (data['pha'] >= pha_min)
+		elif pha_min == None and pha_max != None:
+			print("pha <= %d" % pha_max)				
+			suffix = 'pha_xx_%d' % (pha_max)													
+			mask = (data['pha'] <= pha_max)
+		elif pha_min != None and pha_max != None:
+			print("%d <= pha <= %d" % (pha_min,pha_max))
+			suffix = 'pha_%d_%d'	% (pha_min,pha_max)			
+			mask = np.logical_and((data['pha'] >= pha_min),(data['pha'] <= pha_max))
+
+		print("%d --> %d (%.2f%%)" % (len(data),len(data[mask]),
+			float(len(data[mask]))/float(len(data))*100.0))
+
+		xlow = 0.0
+		xhigh = data['TIME'][-1] - data['TIME'][0]
+		nbins = round((xhigh-xlow)/tbin)
+		hist_lc = Hist1D(nbins, xlow, xhigh)
+		#print(data['TIME'][mask]-data['TIME'][0])
+		hist_lc.fill(data['TIME'][mask]-data['TIME'][0])
+
+		outpdf = 'tmp_%s_curve_%s.pdf' % (self.basename,suffix)
+		fig, ax = plt.subplots(1,1, figsize=(11.69,8.27))		
+		plt.step(*hist_lc.data)		
+		plt.savefig(outpdf)	
+
+		xlow = 0
+		xhigh = max(hist_lc.hist) * 1.2
+		nbins = round(xhigh)
+		hist_dist = Hist1D(nbins,xlow,xhigh)
+		hist_dist.fill(hist_lc.hist)
+
+		outpdf = 'tmp_%s_curve_%s_dist.pdf' % (self.basename,suffix)
+		fig, ax = plt.subplots(1,1, figsize=(11.69,8.27))		
+		plt.step(*hist_dist.data)		
+		plt.yscale('log')
 		plt.savefig(outpdf)	
 
 class EventRawcsvFile(EventFile):
