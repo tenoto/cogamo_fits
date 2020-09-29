@@ -19,6 +19,11 @@ import matplotlib.pylab as plt
 from astropy.visualization import time_support
 import matplotlib
 
+from iminuit import Minuit
+from probfit import BinnedChi2, UnbinnedLH, Extended, gaussian
+
+def gauss_continuum(x, mu, sigma, area, c0=0.0, c1=0.0):
+    return area * np.exp(-0.5*(x-mu)**2/sigma**2)/(np.sqrt(2*np.pi)*sigma) + c0 + c1 * x 
 
 class Hist1D(object):
 
@@ -171,6 +176,38 @@ class EventFitsFile(EventFile):
 		"""
 
 		plt.savefig(outpdf)	
+
+	def fit_line(self,pdfname='fit.pdf',fitout='fit.txt',xmin=None,xmax=None,fontsize=18):
+		sys.stdout.write('----- {} -----\n'.format(sys._getframe().f_code.co_name))
+
+		flag = np.logical_and(self.hdu['EVENTS'].data['pha'] >= xmin, self.hdu['EVENTS'].data['pha'] <= xmax)
+		selected_evt = self.hdu['EVENTS'].data['pha'][flag]
+		nbins = int(xmax - xmin + 1)
+		bc2 = BinnedChi2(gauss_continuum, selected_evt, 
+			bins=nbins, bound=(xmin,xmax))
+
+		fig, ax = plt.subplots(1,1, figsize=(11.69,8.27))
+		plt.xlabel('ADC channel (pha)', fontsize=fontsize)
+		plt.ylabel('Counts', fontsize=fontsize)		
+		plt.tight_layout(pad=2)
+		plt.tick_params(labelsize=fontsize)
+		plt.rcParams["font.family"] = "serif"
+		plt.rcParams["mathtext.fontset"] = "dejavuserif"	
+		ax.minorticks_on()
+		ax.grid(True)
+		ax.grid(axis='both',which='major', linestyle='--', color='#000000')
+		ax.grid(axis='both',which='minor', linestyle='--')	
+		ax.tick_params(axis="both", which='major', direction='in', length=5)						
+
+		m = Minuit(bc2, mu=52, sigma=5, area=100, c0=0, c1=0)
+		m.migrad()
+		bc2.draw(m,errors=True)
+		m.minos() 
+		m.print_param()
+		print(m.values)
+		print(m.errors)
+		print(m.merrors)
+		plt.savefig(pdfname)	
 
 	def find_burst(self,pha_min=None,pha_max=None,
 		tbin=1.0,threshold=3.0,colname="TIME"):
