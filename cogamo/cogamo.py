@@ -358,7 +358,10 @@ class ConfigFile():
 			f = open(self.file_path)
 			for line in f:
 				keyword, value = line.split(',')
-				self.dict_keywords[keyword] = int(value)
+				if keyword == 'MULTIP':
+					self.dict_keywords[keyword] = float(value)
+				else:
+					self.dict_keywords[keyword] = int(value)
 			f.close()
 		except OSError as e:
 			raise
