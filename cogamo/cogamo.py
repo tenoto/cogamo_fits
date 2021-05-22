@@ -22,6 +22,11 @@ import matplotlib
 from iminuit import Minuit
 from probfit import BinnedChi2, UnbinnedLH, Extended, gaussian
 
+
+##########################
+# General functions
+##########################
+
 def gauss_continuum(x, mu, sigma, area, c0=0.0, c1=0.0):
     return area * np.exp(-0.5*(x-mu)**2/sigma**2)/(np.sqrt(2*np.pi)*sigma) + c0 + c1 * x 
 
@@ -44,6 +49,10 @@ class Hist1D(object):
 	@property
 	def data(self):
 		return self.bins, self.hist
+
+##########################
+# Event fits file
+##########################
 
 class EventFile(object):
 	def __init__(self):
@@ -369,6 +378,10 @@ class ConfigFile():
 	def get_dict_keywords(self):
 		return self.dict_keywords
 
+##########################
+# House Keeping File
+##########################
+
 class HouseKeepingFile(object):
 	def __init__(self):
 		self.nlines = 0
@@ -470,6 +483,104 @@ class HousekeepingRawcsvFile():
 		hdu.header['history'] = 'created at {} JST'.format(Time.now().to_datetime(tz_tokyo))
 		hdu.writeto(output_fitsfile)
 
+class HousekeepingRemoteFile():
+	def __init__(self,file_path):
+		sys.stdout.write('----- HousekeepingRemoteFile -----\n')
+
+		self.file_path = file_path
+
+		self.basename = os.path.splitext(os.path.basename(self.file_path))[0]
+
+		if not os.path.exists(self.file_path):
+			raise FileNotFoundError("{} not found".format(self.file_path))
+		try:
+			self.df = pd.read_csv(self.file_path, index_col=False)
+		except OSError as e:
+			raise
+		yyyymmdd_hhmmss = self.df['time'].str.split(" ",n=1,expand=True)
+		self.df['yyyymmdd'] = yyyymmdd_hhmmss[0]
+		self.df['hhmmss'] = yyyymmdd_hhmmss[1]
+
+		self.format = 'remotecsv'
+		self.nlines = len(self.df)
+
+		self.set_filename_property()
+
+	def set_filename_property(self):
+		self.detid_str = os.path.basename(self.file_path).split('_')[0]
+
+		#self.starttime_str = os.path.basename(self.file_path)[3:22].replace(' ','T').replace('-','').replace('_','')
+		#self.stoptime_str = os.path.basename(self.file_path)[23:42].replace(' ','T').replace('-','').replace('_','')
+		self.starttime_str = os.path.basename(self.file_path)[3:20].replace(' ','T').replace('-','').replace('_','')
+		self.stoptime_str = os.path.basename(self.file_path)[23:40].replace(' ','T').replace('-','').replace('_','')
+
+	def set_time_series(self):
+		"""
+		the standard unix time does not have enough accuracy below 1 second.
+		Sub-second time stamp is handled by another column
+		"""
+		self.time_series_str  = np.char.array(self.df['yyyymmdd'] + 'T' + self.df['hhmmss'])
+		time_series_jst = Time(self.time_series_str, format='isot', scale='utc', precision=5) 
+		self.time_series_utc = time_series_jst - timedelta(hours=+9)
+		self.df['interval'] = np.insert(np.diff(self.time_series_utc.unix),0,np.nan)
+
+	def write_to_fitsfile(self,output_fitsfile=None):
+		"""
+		https://docs.astropy.org/en/stable/io/fits/usage/table.html
+		"""
+		sys.stdout.write('----- {} -----\n'.format(sys._getframe().f_code.co_name))
+
+		if output_fitsfile == None:
+			output_fitsfile = "{:0=3}_{}_{}_remote.fits".format(int(self.detid_str),self.starttime_str,self.stoptime_str)
+		elif os.path.exists(output_fitsfile):
+			raise FileExistsError("{} has alaredy existed.".format(output_fitsfile))
+
+		self.set_time_series()
+
+		column_yyyymmdd = fits.Column(name='YYYYMMDD',format='10A', unit='JST', array=np.char.array(self.df['yyyymmdd']))
+		column_hhmmss = fits.Column(name='HHMMSS',format='8A', unit='JST', array=np.char.array(self.df['hhmmss']))
+		column_unixtime = fits.Column(name='Unixtime',format='D', unit='sec', array=self.time_series_utc.unix)
+		column_interval = fits.Column(name='Interval',format='I', unit='sec', array=self.df['interval'])
+		column_rate1 = fits.Column(name='Rate1',format='D', unit='count/s', array=self.df['area1'])
+		column_rate2 = fits.Column(name='Rate2',format='D', unit='count/s', array=self.df['area2'])
+		column_rate3 = fits.Column(name='Rate3',format='D', unit='count/s', array=self.df['area3'])
+		column_rate4 = fits.Column(name='Rate4',format='D', unit='count/s', array=self.df['area4'])
+		column_rate5 = fits.Column(name='Rate5',format='D', unit='count/s', array=self.df['area5'])								
+		column_rate6 = fits.Column(name='Rate6',format='D', unit='count/s', array=self.df['area6'])	
+		column_temperature = fits.Column(name='Temperature',format='D', unit='degC', array=self.df['temp'])		
+		column_pressure = fits.Column(name='Pressure',format='D', unit='hPa', array=self.df['pressure'])					
+		column_humidity = fits.Column(name='Humidity',format='D', unit='%', array=self.df['humidity'])	
+		column_differential = fits.Column(name='Differential',format='D', unit='count/s', array=self.df['differential'])
+		column_lux = fits.Column(name='Illumination',format='D', unit='lux', array=self.df['lux'])	
+		column_gps_status = fits.Column(name='Gps_status',format='I', unit='', array=self.df['gps_status'])	
+		column_longitude = fits.Column(name='Longitude',format='D', unit='deg', array=self.df['longitude'])		
+		column_latitude = fits.Column(name='Latitude',format='D', unit='deg', array=self.df['latitude'])			
+
+		column_defs = fits.ColDefs([column_yyyymmdd,column_hhmmss,column_unixtime,column_interval,column_rate1,column_rate2,column_rate3,column_rate4,column_rate5,column_rate6,column_temperature,column_pressure,column_humidity,column_differential,column_lux,column_gps_status,column_longitude,column_latitude])
+		hdu = fits.BinTableHDU.from_columns(column_defs,name='HK')
+
+		dict_keywords = {
+			'DET_ID':[self.detid_str,'Detector_ID'],
+			'INTERVAL':[int(np.mean(self.df['interval'][1:-1])),'Interval (sec)'],
+			'AREABD1':[0.0,'Not defined.'],
+			'AREABD2':[0.0,'Not defined.'],
+			'AREABD3':[0.0,'Not defined.'],
+			'AREABD4':[0.0,'Not defined.'],
+			'AREABD5':[0.0,'Not defined.'],									
+			'AREABD6':[0.0,'Not defined.']}
+		for keyword in dict_keywords.keys():
+			hdu.header[keyword] = dict_keywords[keyword][0]
+			hdu.header.comments[keyword] = dict_keywords[keyword][1]
+
+		#if config_file != None:
+		#	self.set_config_file(config_file)
+		#	for keyword in self.config.dict_keywords.keys():
+		#		hdu.header[keyword] = self.config.dict_keywords[keyword]
+
+		hdu.header['comment'] = 'unixtime is UTC, while yyyymmddTHH:MM:SS column and the file name are JST.'
+		hdu.header['history'] = 'created at {} JST'.format(Time.now().to_datetime(tz_tokyo))
+		hdu.writeto(output_fitsfile)
+
 class HousekeepingFitsFile():
 	def __init__(self,file_path):
 		self.file_path = file_path
@@ -501,9 +612,10 @@ class HousekeepingFitsFile():
 		title += 'Interval=%d min ' % (self.hdu['HK'].header['INTERVAL'])
 		title += '(%s)' % os.path.basename(self.file_path)
 		title += '\n'		
-		title += 'Rate L (1+2):<%.1f MeV, ' % (self.hdu['HK'].header['AREABD2']/1000.0)
-		title += 'Rate M (3+4):%.1f-%.1f MeV, ' % (self.hdu['HK'].header['AREABD2']/1000.0,self.hdu['HK'].header['AREABD4']/1000.0)		
-		title += 'Rate H (5+6):>%.1f MeV, ' % (self.hdu['HK'].header['AREABD4']/1000.0)
+		if self.hdu['HK'].header['AREABD2'] > 0.0:
+			title += 'Rate L (1+2):<%.1f MeV, ' % (self.hdu['HK'].header['AREABD2']/1000.0)
+			title += 'Rate M (3+4):%.1f-%.1f MeV, ' % (self.hdu['HK'].header['AREABD2']/1000.0,self.hdu['HK'].header['AREABD4']/1000.0)		
+			title += 'Rate H (5+6):>%.1f MeV, ' % (self.hdu['HK'].header['AREABD4']/1000.0)
 
 		outpdf = '%s.pdf' % self.basename
 
@@ -532,7 +644,7 @@ class HousekeepingFitsFile():
 		axs[8].set_ylabel(r"GPS status")		
 		axs[8].set_xlabel(r"Time (JST)")
 		axs[8].set_ylim(-0.5,2.5)
-		axs[8].xaxis.set_major_formatter(dates.DateFormatter('%H:%M'))
+		axs[8].xaxis.set_major_formatter(dates.DateFormatter('%m-%d\n%H:%M'))
 		
 		axs[8].set_xlim(time_series_jst[0],time_series_jst[-1])
 		for ax in axs:
@@ -558,7 +670,12 @@ def fopen(file_path):
 	elif re.fullmatch(r'\d{3}_\d{8}.csv', os.path.basename(file_path)):
 		return HousekeepingRawcsvFile(file_path)	
 	elif re.fullmatch(r'\d{3}_\d{8}_hk.fits', os.path.basename(file_path)):
-		return HousekeepingFitsFile(file_path)				
+		return HousekeepingFitsFile(file_path)	
+	elif re.fullmatch(r'\d{3}_\d{8}T\d{4}_\d{8}T\d{4}_remote.fits', os.path.basename(file_path)):
+		return HousekeepingFitsFile(file_path)					
+	elif re.fullmatch(r'\d{2}_\d{4}-\d{2}-\d{2}\ \d{2}_\d{2}_\d{2}_\d{4}-\d{2}-\d{2}\ \d{2}_\d{2}_\d{2}.csv', 
+			os.path.basename(file_path)):
+		return HousekeepingRemoteFile(file_path)
 	else:
 		raise NotImplementedError("EventFile class for this file type is not implemented")		
 
