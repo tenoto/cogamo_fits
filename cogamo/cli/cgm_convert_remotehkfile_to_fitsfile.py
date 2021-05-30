@@ -6,7 +6,7 @@ import cogamo.cogamo as cogamo
 
 __author__ = 'Teruaki Enoto'
 __version__ = '0.01'
-# v0.01 : 2020-08-13 : original version
+# v0.01 : 2021-05-30 : original version
 
 def get_parser():
 	"""

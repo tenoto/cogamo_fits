@@ -509,10 +509,15 @@ class HousekeepingRemoteFile():
 	def set_filename_property(self):
 		self.detid_str = os.path.basename(self.file_path).split('_')[0]
 
-		#self.starttime_str = os.path.basename(self.file_path)[3:22].replace(' ','T').replace('-','').replace('_','')
-		#self.stoptime_str = os.path.basename(self.file_path)[23:42].replace(' ','T').replace('-','').replace('_','')
-		self.starttime_str = os.path.basename(self.file_path)[3:20].replace(' ','T').replace('-','').replace('_','')
-		self.stoptime_str = os.path.basename(self.file_path)[23:40].replace(' ','T').replace('-','').replace('_','')
+		starttime_str = os.path.basename(self.file_path)[11:24]
+		self.starttime_str = '20'+starttime_str[0:2]+'-'+starttime_str[2:4]+'-'+starttime_str[4:7]
+		self.starttime_str += starttime_str[7:9] + ':' + starttime_str[9:11] + ':' + starttime_str[11:13]
+
+		stoptime_str = os.path.basename(self.file_path)[25:38]
+		self.stoptime_str = '20'+stoptime_str[0:2]+'-'+stoptime_str[2:4]+'-'+stoptime_str[4:7]
+		self.stoptime_str += stoptime_str[7:9] + ':' + stoptime_str[9:11] + ':' + stoptime_str[11:13]
+
+		self.detid_str = os.path.basename(self.file_path)[3:6]
 
 	def set_time_series(self):
 		"""
@@ -531,7 +536,7 @@ class HousekeepingRemoteFile():
 		sys.stdout.write('----- {} -----\n'.format(sys._getframe().f_code.co_name))
 
 		if output_fitsfile == None:
-			output_fitsfile = "{:0=3}_{}_{}_remote.fits".format(int(self.detid_str),self.starttime_str,self.stoptime_str)
+			output_fitsfile = os.path.splitext(os.path.basename(self.file_path))[0] + '.fits'
 		elif os.path.exists(output_fitsfile):
 			raise FileExistsError("{} has alaredy existed.".format(output_fitsfile))
 
@@ -671,11 +676,10 @@ def fopen(file_path):
 		return HousekeepingRawcsvFile(file_path)	
 	elif re.fullmatch(r'\d{3}_\d{8}_hk.fits', os.path.basename(file_path)):
 		return HousekeepingFitsFile(file_path)	
-	elif re.fullmatch(r'\d{3}_\d{8}T\d{4}_\d{8}T\d{4}_remote.fits', os.path.basename(file_path)):
-		return HousekeepingFitsFile(file_path)					
-	elif re.fullmatch(r'\d{2}_\d{4}-\d{2}-\d{2}\ \d{2}_\d{2}_\d{2}_\d{4}-\d{2}-\d{2}\ \d{2}_\d{2}_\d{2}.csv', 
-			os.path.basename(file_path)):
+	elif re.fullmatch(r'cgm\d{3}_rhk_\d{6}T\d{6}_\d{6}T\d{6}.csv',os.path.basename(file_path)):
 		return HousekeepingRemoteFile(file_path)
+	elif re.fullmatch(r'cgm\d{3}_rhk_\d{6}T\d{6}_\d{6}T\d{6}.fits',os.path.basename(file_path)):
+		return HousekeepingFitsFile(file_path)					
 	else:
 		raise NotImplementedError("EventFile class for this file type is not implemented")		
 
