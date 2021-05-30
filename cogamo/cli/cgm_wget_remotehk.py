@@ -43,8 +43,8 @@ def wget_cgm_remotehk(cgm_id,start,end):
 	# Set output filename 
 	passcode = os.getenv('COGAMO_SERVER_PASSCODE')
 	output_csvfname = 'cgm%03d_rhk_' % int(cgm_id)
-	output_csvfname += '%s_' % start.replace('-','').replace(':','')[2:13]
-	output_csvfname += '%s' % end.replace('-','').replace(':','')[2:13]
+	output_csvfname += '%s_' % start.replace('-','').replace(':','')[2:15]
+	output_csvfname += '%s' % end.replace('-','').replace(':','')[2:15]
 	output_csvfname += '.csv'
 
 	if os.path.exists(output_csvfname):
