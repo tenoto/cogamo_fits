@@ -12,6 +12,7 @@ __version__ = '0.01'
 
 dict_cogamoid_to_servernum = {
 	'37':'22', '38':'23'}
+# This dictionary is no longer used becasue we can directly use the cogamo id with "sname" option at wget (2021-06-02)
 
 def get_parser():
 	"""
@@ -41,6 +42,9 @@ def wget_cgm_remotehk(cgm_id,start,end):
 	print("%s" % sys._getframe().f_code.co_name)
 
 	# Set output filename 
+	if os.getenv('COGAMO_SERVER_PASSCODE') is None:
+		print("please set the environmental value COGAMO_SERVER_PASSCODE.")
+		exit()
 	passcode = os.getenv('COGAMO_SERVER_PASSCODE')
 	output_csvfname = 'cgm%03d_rhk_' % int(cgm_id)
 	output_csvfname += '%s_' % start.replace('-','').replace(':','')[2:15]
@@ -53,12 +57,14 @@ def wget_cgm_remotehk(cgm_id,start,end):
 
 	# Main routine for wget 
 	cmd = 'wget "http://demo1.tacinc.jp/api/sensor/csv/'
-	cmd += '?id=%s&' % dict_cogamoid_to_servernum[cgm_id]
+#	cmd += '?id=%s&' % dict_cogamoid_to_servernum[cgm_id]
+	cmd += '?sname=%s&' % cgm_id
 	cmd += 'start_datetime=%s&' % start.replace('T',' ')
 	cmd += 'end_datetime=%s&' % end.replace('T',' ')
 	cmd += 'k=%s" ' % passcode
 	cmd += '-O "%s"' % output_csvfname
-	print(cmd);os.system(cmd)
+	print(cmd);#os.system(cmd)
+	proc = subprocess.call(cmd,shell=True)
 
 	if not os.path.exists(output_csvfname):
 		print("wget error...")
