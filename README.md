@@ -1,4 +1,6 @@
-# cogamo 
+# cogamo_fits
+
+(obsolete on 2021-12-07, will be merged to cogamo)
 
 [![hackmd-github-sync-badge](https://hackmd.io/BUiCqBFqQDeVTWameMicjw/badge)](https://hackmd.io/BUiCqBFqQDeVTWameMicjw)
 
